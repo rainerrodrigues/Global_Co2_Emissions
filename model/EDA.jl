@@ -36,3 +36,94 @@ for g in grouped
     plot(g.year, g.co2, label=country, lw=2, xlabel="Year", ylabel="CO₂ Emissions", title="CO₂ Emissions for $country")
     display(current())  # Show each plot individually
 end
+
+#Selecting the year for the conflict in the respective countries
+conflict_year = Dict(
+    "Ukraine" => 2014,
+    "Russia" => 2022,
+    "Israel" => 2023,
+    "Palestine" => 2023,
+    "Sudan" => 2023,
+    "Yemen" => 2015,
+    "Syria" => 2011,
+    "Armenia" => 2020,
+    "Azerbaijan" => 2020,
+    "Rwanda" => 1994,
+    "Democratic Republic of Congo" => 1997
+)
+
+function percent_change_conflict(df::DataFrame,conflict_year::Int64)
+    pre = filter(r -> r.year == conflict_year - 1, df)
+    post = filter(r -> r.year == conflict_year + 1, df)
+
+    if nrow(pre) == 0 || nrow(post) == 0 || any(ismissing.([pre.co2[1],post.co2[1]]))
+        return missing
+    end
+
+    change = (post.co2[1] - pre.co2[1])/pre.co2[1] * 100
+    return round(change,digits=2)
+end
+
+for country in keys(conflict_year)
+    sub = filter(row -> row.country == country && !ismissing(row.co2),df)
+    change = percent_change_conflict(sub, conflict_year[country])
+    println("$country: $change % change after conflict ensued")
+end
+
+# Apart from Sudan, Israel and Palestine which are missing data for the period, 
+# Ukraine, Rwanda, Syria, Yemen and Democratic Republic of Congo display decrease in Co2 emission in the conflict while
+# Russia, Azerbaijan and Armenia shows increase in Co2 emission albeit slightly. 
+
+# Let's explore if in some case if they have achieved recovery level after the conflict
+function recovery_year(df::DataFrame,conflict_year::Int64)
+    pre = filter(r -> r.year == conflict_year - 1, df)
+    pre_emissions = nrow(pre) > 0 ? pre.co2[1] : missing
+    if ismissing(pre_emissions)
+        return missing
+    end
+
+    post = filter(r -> r.year > conflict_year && !ismissing(r.co2), df)
+    for r in eachrow(post)
+        if r.co2 >= pre_emissions
+            return r.year
+        end
+    end
+    return "Not recovered"
+end
+
+for country in keys(conflict_year)
+    sub = filter(row -> row.country == country && !ismissing(row.co2),df)
+    year = recovery_year(sub,conflict_year[country])
+    println("$country: recovered in $year")
+end
+
+for (country, conflict_year) in conflict_years
+    sub = filter(row -> row.country == country && !ismissing(row.co2), df)
+    
+    if nrow(sub) == 0
+        continue
+    end
+
+    plot(sub.year, sub.co2, label="CO₂ Emissions", lw=2, 
+         title="CO₂ Trend: $country", xlabel="Year", ylabel="Mt CO₂")
+    vline!([conflict_year], label="Conflict Start", lw=2, lc=:red, ls=:dash)
+    display(current())  # Display each plot individually
+end
+
+results = DataFrame(
+    country = String[],
+    conflict_year = Int[],
+    percent_change = Union{Missing,Float64}[],
+    recovery_year = Union{Missing,Int,String}[]
+)
+
+for country in keys(conflict_years)
+    sub = filter(row -> row.country == country && !ismissing(row.co2), df)
+    cyear = conflict_years[country]
+    change = percent_change_conflict(sub, cyear)
+    recov = recovery_year(sub, cyear)
+
+    push!(results, (country, cyear, change, recov))
+end
+
+println(results)
