@@ -127,3 +127,18 @@ for country in keys(conflict_years)
 end
 
 println(results)
+
+#Creating interactive map for exploration
+country_codes = Dict(
+    "Ukraine" => "UKR",
+    "Russia" => "RUS",
+    "Israel" => "ISR",
+    "Palestine" => "PSE",
+    "Sudan" => "SDN",
+    "Yemen" => "YEM",
+    "Syria" => "SYR",
+    "Armenia" => "ARM",
+    "Azerbaijan" => "AZE",
+    "Rwanda" => "RWA",
+    "Democratic Republic of Congo" => "COD"
+)
