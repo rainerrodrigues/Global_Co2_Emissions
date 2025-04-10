@@ -1,4 +1,4 @@
-using CSV, DataFrames, Statistics, Plots
+using CSV, DataFrames, Statistics, Plots, PlotlyJS
 
 df = CSV.read("data.csv",DataFrame)
 first(df, 5)
@@ -17,7 +17,7 @@ std_emissions = std(skipmissing(us_data.co2))
 
 println("Mean: $mean_emissions, Median: $median_emissions, Std Dev: $std_emissions")
 
-plot(us_data.year, us_data.co2, title="US CO₂ Emissions Over Time",
+Plots.plot(us_data.year, us_data.co2, title="US CO₂ Emissions Over Time",
      xlabel="Year", ylabel="CO₂ Emissions (million tonnes)", lw=2)
 
 # Now, I will be investigating on several countries that are currently in conflicts(dated 7/4/25)
@@ -33,7 +33,7 @@ grouped = groupby(filtered_df, :country)
 
 for g in grouped
     country = unique(g.country)[1]
-    plot(g.year, g.co2, label=country, lw=2, xlabel="Year", ylabel="CO₂ Emissions", title="CO₂ Emissions for $country")
+    Plots.plot(g.year, g.co2, label=country, lw=2, xlabel="Year", ylabel="CO₂ Emissions", title="CO₂ Emissions for $country")
     display(current())  # Show each plot individually
 end
 
@@ -97,14 +97,14 @@ for country in keys(conflict_year)
     println("$country: recovered in $year")
 end
 
-for (country, conflict_year) in conflict_years
+for (country, conflict_year) in conflict_year
     sub = filter(row -> row.country == country && !ismissing(row.co2), df)
     
     if nrow(sub) == 0
         continue
     end
 
-    plot(sub.year, sub.co2, label="CO₂ Emissions", lw=2, 
+    Plots.plot(sub.year, sub.co2, label="CO₂ Emissions", lw=2, 
          title="CO₂ Trend: $country", xlabel="Year", ylabel="Mt CO₂")
     vline!([conflict_year], label="Conflict Start", lw=2, lc=:red, ls=:dash)
     display(current())  # Display each plot individually
@@ -117,9 +117,9 @@ results = DataFrame(
     recovery_year = Union{Missing,Int,String}[]
 )
 
-for country in keys(conflict_years)
+for country in keys(conflict_year)
     sub = filter(row -> row.country == country && !ismissing(row.co2), df)
-    cyear = conflict_years[country]
+    cyear = conflict_year[country]
     change = percent_change_conflict(sub, cyear)
     recov = recovery_year(sub, cyear)
 
@@ -142,3 +142,26 @@ country_codes = Dict(
     "Rwanda" => "RWA",
     "Democratic Republic of Congo" => "COD"
 )
+
+results[!,:code] = [country_codes[c] for c in results.country]
+
+fig = PlotlyJS.Plot(  
+    choropleth(
+        locations=results.code,
+        z=results.percent_change,
+        text=["$(c): $(pc)% (Recovery: $(r))" for (c, pc, r) in zip(results.country, results.percent_change, results.recovery_year)],
+        colorscale="RdBu",
+        colorbar=attr(title="Emission Change (%)"),
+        marker=attr(line=attr(color="darkgray", width=0.5))
+    ),
+    Layout(
+        title="CO₂ Emission Change After Conflicts",
+        geo=attr(
+            showframe=false,
+            showcoastlines=true,
+            projection=attr(type="natural earth")
+        )
+    )
+)
+
+display(fig)
