@@ -165,3 +165,5 @@ fig = PlotlyJS.Plot(
 )
 
 display(fig)
+
+PlotlyJS.savefig(fig, "emission_map.html")
